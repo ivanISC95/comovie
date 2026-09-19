@@ -108,6 +108,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
       title={movieToEdit ? 'Editar Película' : 'Agregar Película'}
       centered
       radius="md"
+      closeOnClickOutside={false}
     >
       <form onSubmit={form.onSubmit(handleSubmit)}>
         <Stack gap="sm">
@@ -147,6 +148,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
             label="URL del Poster / Imagen"
             placeholder="https://..."
             {...form.getInputProps('imageUrl')}
+            style={{display:'none'}}
           />
 
           <Textarea
