@@ -1,7 +1,7 @@
 // src/components/dashboard/StatCards.tsx
 
 import { SimpleGrid, Paper, Text, Group, ThemeIcon } from '@mantine/core';
-import { IconMovie, IconHeart, IconEye, IconUsers } from '@tabler/icons-react';
+import { IconMovie, IconHeart,IconUsers } from '@tabler/icons-react';
 import type { Movie } from '../../types/movie';
 
 interface StatCardsProps {
@@ -11,12 +11,14 @@ interface StatCardsProps {
 
 export function StatCards({ movies, connectedPeersCount }: StatCardsProps) {
   const myMovies = movies.filter((m) => m.owner === 'me');
-  const watchedCount = myMovies.filter((m:any) => m.watched).length;
-  const favoriteCount = myMovies.filter((m:any) => m.isFavorite).length;
+  // const watchedCount = myMovies.filter((m:any) => m.watched).length;
+  const favoriteCount = myMovies.filter((m:any) => (m.rating == 5)).length;
+  console.log(movies)
+  console.log(favoriteCount)
 
   const stats = [
     { title: 'Mis Películas', value: myMovies.length, icon: IconMovie, color: 'blue' },
-    { title: 'Vistas', value: watchedCount, icon: IconEye, color: 'teal' },
+    // { title: 'Vistas', value: watchedCount, icon: IconEye, color: 'teal' },
     { title: 'Favoritas', value: favoriteCount, icon: IconHeart, color: 'red' },
     { title: 'Coincidencias', value: connectedPeersCount, icon: IconUsers, color: 'violet' },
   ];
