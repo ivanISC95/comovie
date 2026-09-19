@@ -24,7 +24,7 @@ export function MovieTable({ movies, onEdit }: MovieTableProps) {
           <Table.Th>Año</Table.Th>
           <Table.Th>Calificación</Table.Th>
           <Table.Th>Propietario</Table.Th>
-          <Table.Th>Estado</Table.Th>
+          {/* <Table.Th>Estado</Table.Th> */}
           <Table.Th style={{ width: 80 }}>Acciones</Table.Th>
         </Table.Tr>
       </Table.Thead>
@@ -88,7 +88,7 @@ export function MovieTable({ movies, onEdit }: MovieTableProps) {
               </Table.Td>
 
               {/* Estado (Vista / Pendiente) */}
-              <Table.Td>
+              <Table.Td style={{display:'none'}}>
                 <Badge
                   size="sm"
                   color={movie.watched ? 'green' : 'gray'}
@@ -111,6 +111,7 @@ export function MovieTable({ movies, onEdit }: MovieTableProps) {
                     <Menu.Item
                       leftSection={movie.watched ? <IconX size={14} /> : <IconCheck size={14} />}
                       onClick={() => toggleWatched(movie.id)}
+                      style={{display:'none'}}
                     >
                       {movie.watched ? 'Marcar pendiente' : 'Marcar como vista'}
                     </Menu.Item>

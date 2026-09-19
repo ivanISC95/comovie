@@ -79,6 +79,7 @@ export function MovieCard({ movie, onEdit }: MovieCardProps) {
                 <Menu.Item
                   leftSection={movie.watched ? <IconX size={14} /> : <IconCheck size={14} />}
                   onClick={() => toggleWatched(movie.id)}
+                  style={{display:'none'}}
                 >
                   {movie.watched ? 'Marcar pendiente' : 'Marcar como vista'}
                 </Menu.Item>

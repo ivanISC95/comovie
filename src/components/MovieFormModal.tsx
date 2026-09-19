@@ -43,7 +43,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
       title: '',
       genre: 'Acción' as Genre,
       rating: 3,
-      watched: false,
+      watched: true,
       imageUrl: '',
       year: new Date().getFullYear(),
       comment: '',
@@ -154,6 +154,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
             placeholder="¿Qué te pareció?"
             rows={2}
             {...form.getInputProps('comment')}
+            style={{display:'none'}}
           />
 
           <Checkbox
@@ -161,7 +162,8 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
             label="¿Ya la viste?"
             checked={form.values.watched}
             {...form.getInputProps('watched', { type: 'checkbox' })}
-          />
+            style={{display:'none'}}
+            />
 
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={onClose}>

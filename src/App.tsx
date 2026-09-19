@@ -8,6 +8,7 @@ import { HomeView } from './views/HomeView';
 import { MyListView } from './views/MyListView';
 import { CommunityView } from './views/CommunityView';
 import { MovieFormModal } from './components/MovieFormModal';
+import { WelcomeModal } from './components/WelcomeModal';
 
 export default function App() {
   const { fetchMovies, activeTab, isAddModalOpen, setIsAddModalOpen } = useMovieStore();
@@ -34,7 +35,7 @@ export default function App() {
   return (
     <MainLayout>
       {renderView()}
-
+      <WelcomeModal />
       {/* Modal global accesible desde cualquier pestaña */}
       <MovieFormModal
         opened={isAddModalOpen}

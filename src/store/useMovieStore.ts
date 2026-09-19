@@ -6,6 +6,7 @@ import type { Movie, Genre } from '../types/movie';
 
 export type ActiveTab = 'home' | 'my-list' | 'community';
 
+
 interface MovieState {
   movies: Movie[];
   isLoading: boolean;
@@ -18,7 +19,7 @@ interface MovieState {
   isAddModalOpen: boolean;
 
   // Acciones
-  setActiveTab: (tab: string) => void;
+  setActiveTab: (tab: ActiveTab) => void;
   setSearchQuery: (query: string) => void;
   setSelectedGenre: (genre: Genre | 'all') => void;
   setIsAddModalOpen: (isOpen: boolean) => void;
@@ -29,7 +30,7 @@ interface MovieState {
   deleteMovie: (id: string) => Promise<void>;
   toggleWatched: (id: string) => Promise<void>;
   mergePartnerMovies: (partnerId: string, partnerMovies: Movie[]) => Promise<void>;
-  
+
   // Respaldo JSON
   exportMoviesJSON: () => void;
   importMoviesJSON: (jsonString: string) => Promise<void>;

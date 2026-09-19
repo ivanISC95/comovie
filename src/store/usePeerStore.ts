@@ -4,198 +4,214 @@ import { create } from 'zustand';
 import Peer from 'peerjs';
 import type { DataConnection } from 'peerjs';
 import { useMovieStore } from './useMovieStore';
-import type { PeerUser, PeerSyncPayload } from '../types/movie';
+import type { Movie } from '../types/movie';
+
+const savedName = localStorage.getItem('cinepals_username');
+const hasSetInitialName = localStorage.getItem('cinepals_has_set_name') === 'true';
+
+export interface ConnectedPeer {
+  id: string;
+  name: string;
+  status: 'connected' | 'disconnected';
+  connection: DataConnection;
+}
 
 interface PeerState {
   peer: Peer | null;
   myPeerId: string;
   userName: string;
-  connectedPeers: PeerUser[];
-  activeConnections: Map<string, DataConnection>;
+  isFirstTime: boolean;
+  connectedPeers: ConnectedPeer[];
   isConnecting: boolean;
-  statusMessage: string | null;
+  error: string | null;
+  statusMessage: string;
 
-  // Acciones
+  // Acciones de Perfil
   setUserName: (name: string) => void;
+  completeInitialSetup: (name: string) => void;
+
+  // Acciones P2P / PeerJS
   initPeer: () => void;
-  connectToPeer: (remotePeerId: string) => void;
-  syncMoviesWithPeer: (conn: DataConnection) => void;
-  broadcastMovies: () => void;
+  connectToPeer: (targetPeerId: string) => void;
+  broadcastMovies: (movies?: Movie[]) => void;
   disconnectPeer: (peerId: string) => void;
 }
-
-// Helper privado para configurar los eventos de cada conexión WebRTC
-const setupConnectionListeners = (
-  conn: DataConnection,
-  get: () => PeerState,
-  set: (fn: (state: PeerState) => Partial<PeerState>) => void
-) => {
-  conn.on('open', () => {
-    const { activeConnections, syncMoviesWithPeer } = get();
-    activeConnections.set(conn.peer, conn);
-
-    const partnerName = conn.metadata?.name || 'Amigo CoMovie';
-
-    set((state) => ({
-      activeConnections: new Map(activeConnections),
-      connectedPeers: [
-        ...state.connectedPeers.filter((p) => p.id !== conn.peer),
-        {
-          id: conn.peer,
-          name: partnerName,
-          status: 'connected',
-          lastSyncedAt: Date.now(),
-        },
-      ],
-      statusMessage: `Conectado con ${partnerName}`,
-      isConnecting: false,
-    }));
-
-    // Sincronizar películas al abrir canal
-    syncMoviesWithPeer(conn);
-  });
-
-  // Listener para recepción de datos
-  conn.on('data', async (data: unknown) => {
-    const payload = data as PeerSyncPayload;
-    if (payload && payload.type === 'SYNC_MOVIES_RESPONSE') {
-      const { mergePartnerMovies } = useMovieStore.getState();
-
-      await mergePartnerMovies(payload.senderId, payload.movies);
-
-      set((state) => ({
-        connectedPeers: state.connectedPeers.map((p) =>
-          p.id === payload.senderId
-            ? { ...p, name: payload.senderName || p.name, lastSyncedAt: Date.now() }
-            : p
-        ),
-        statusMessage: `Sincronizadas ${payload.movies.length} películas de ${payload.senderName || 'tu par'}`,
-      }));
-    }
-  });
-
-  conn.on('close', () => {
-    const newConnections = new Map(get().activeConnections);
-    newConnections.delete(conn.peer);
-
-    set((state) => ({
-      activeConnections: newConnections,
-      connectedPeers: state.connectedPeers.map((p) =>
-        p.id === conn.peer ? { ...p, status: 'disconnected' } : p
-      ),
-      statusMessage: 'Conexión cerrada',
-    }));
-  });
-};
 
 export const usePeerStore = create<PeerState>((set, get) => ({
   peer: null,
   myPeerId: '',
-  userName: 'Miembro CoMovie',
+  userName: savedName || 'Usuario',
+  isFirstTime: !hasSetInitialName,
   connectedPeers: [],
-  activeConnections: new Map(),
   isConnecting: false,
-  statusMessage: null,
+  error: null,
+  statusMessage: 'Listo para conectar',
 
-  setUserName: (name: string) => set({ userName: name }),
+  setUserName: (name: string) => {
+    localStorage.setItem('cinepals_username', name);
+    set({ userName: name });
+  },
+
+  completeInitialSetup: (name: string) => {
+    localStorage.setItem('cinepals_username', name);
+    localStorage.setItem('cinepals_has_set_name', 'true');
+    set({ userName: name, isFirstTime: false });
+  },
 
   initPeer: () => {
-    const currentPeer = get().peer;
+    if (get().peer) return;
 
-    // Si ya existe una instancia activa y conectada, no creamos otra
-    if (currentPeer && !currentPeer.destroyed && get().myPeerId) {
-      return;
-    }
+    const peer = new Peer();
 
-    // Si había una previa destruida o fallida, la limpiamos primero
-    if (currentPeer && !currentPeer.destroyed) {
-      currentPeer.destroy();
-    }
+    peer.on('open', (id) => {
+      set({ myPeerId: id, error: null, statusMessage: 'En línea y listo' });
+    });
 
-    try {
-      // Instancia de PeerJS
-      const peer = new Peer({
-        debug: 1, // Muestra errores importantes en consola
+    peer.on('connection', (conn) => {
+      conn.on('open', () => {
+        const myMovies = useMovieStore.getState().movies.filter((m) => m.owner === 'me');
+        conn.send({
+          type: 'HANDSHAKE',
+          userName: get().userName,
+          movies: myMovies,
+        });
       });
 
-      peer.on('open', (id) => {
-        set(() => ({ myPeerId: id, peer, statusMessage: 'Peer ID listo' }));
+      conn.on('data', (data: any) => {
+        if (data && data.type === 'HANDSHAKE') {
+          const newPeer: ConnectedPeer = {
+            id: conn.peer,
+            name: data.userName || 'Usuario Remoto',
+            status: 'connected',
+            connection: conn,
+          };
+
+          set((state) => ({
+            connectedPeers: [
+              ...state.connectedPeers.filter((p) => p.id !== conn.peer),
+              newPeer,
+            ],
+            statusMessage: `Conectado con ${newPeer.name}`,
+          }));
+
+          if (Array.isArray(data.movies)) {
+            useMovieStore.getState().mergePartnerMovies(conn.peer, data.movies);
+          }
+        }
       });
 
-      peer.on('connection', (conn) => {
-        setupConnectionListeners(conn, get, set);
-      });
-
-      peer.on('error', (err) => {
-        console.error('PeerJS Error:', err);
-        set(() => ({ 
-          statusMessage: `Error P2P (${err.type}): Intenta recargar la página.`, 
-          isConnecting: false 
+      conn.on('close', () => {
+        set((state) => ({
+          connectedPeers: state.connectedPeers.map((p) =>
+            p.id === conn.peer ? { ...p, status: 'disconnected' } : p
+          ),
+          statusMessage: 'Par desconectado',
         }));
       });
 
-      peer.on('disconnected', () => {
-        // Intenta reconectarse automáticamente al servidor de señalización
-        if (!peer.destroyed) {
-          peer.reconnect();
-        }
+      conn.on('error', (err) => {
+        console.error('Error en conexión P2P:', err);
       });
-    } catch (e) {
-      console.error('Error al inicializar PeerJS:', e);
-    }
-  },
-
-  connectToPeer: (remotePeerId: string) => {
-    const { peer, activeConnections, myPeerId, userName } = get();
-    const cleanId = remotePeerId.trim();
-
-    if (!peer || !cleanId) return;
-    if (cleanId === myPeerId) {
-      set(() => ({ statusMessage: 'No puedes conectarte a tu propio Peer ID' }));
-      return;
-    }
-    if (activeConnections.has(cleanId)) {
-      set(() => ({ statusMessage: 'Ya estás conectado con este par' }));
-      return;
-    }
-
-    set(() => ({ isConnecting: true, statusMessage: 'Conectando...' }));
-
-    const conn = peer.connect(cleanId, {
-      metadata: { name: userName || 'Amigo CoMovie' },
     });
 
-    setupConnectionListeners(conn, get, set);
+    peer.on('error', (err) => {
+      console.error('Error en PeerJS:', err);
+      set({ error: 'Error de conexión P2P.', statusMessage: 'Error de red P2P' });
+    });
+
+    set({ peer });
   },
 
-  syncMoviesWithPeer: (conn: DataConnection) => {
-    const { movies } = useMovieStore.getState();
-    const { myPeerId, userName } = get();
-    const myMoviesOnly = movies.filter((m) => m.owner === 'me');
+  connectToPeer: (targetPeerId: string) => {
+    const { peer, connectedPeers } = get();
+    const cleanId = targetPeerId.trim();
 
-    const payload: PeerSyncPayload = {
-      type: 'SYNC_MOVIES_RESPONSE',
-      senderId: myPeerId,
-      senderName: userName || 'Amigo CoMovie',
-      movies: myMoviesOnly,
-    };
+    if (!peer || !cleanId) return;
+    if (connectedPeers.some((p) => p.id === cleanId && p.status === 'connected')) return;
 
-    if (conn.open) {
-      conn.send(payload);
-    }
+    set({ isConnecting: true, error: null, statusMessage: 'Conectando...' });
+
+    const conn = peer.connect(cleanId);
+
+    conn.on('open', () => {
+      const myMovies = useMovieStore.getState().movies.filter((m) => m.owner === 'me');
+      conn.send({
+        type: 'HANDSHAKE',
+        userName: get().userName,
+        movies: myMovies,
+      });
+
+      set({ isConnecting: false });
+    });
+
+    conn.on('data', (data: any) => {
+      if (data && data.type === 'HANDSHAKE') {
+        const newPeer: ConnectedPeer = {
+          id: conn.peer,
+          name: data.userName || 'Usuario Remoto',
+          status: 'connected',
+          connection: conn,
+        };
+
+        set((state) => ({
+          connectedPeers: [
+            ...state.connectedPeers.filter((p) => p.id !== conn.peer),
+            newPeer,
+          ],
+          statusMessage: `Conectado con ${newPeer.name}`,
+        }));
+
+        if (Array.isArray(data.movies)) {
+          useMovieStore.getState().mergePartnerMovies(conn.peer, data.movies);
+        }
+      }
+    });
+
+    conn.on('close', () => {
+      set((state) => ({
+        connectedPeers: state.connectedPeers.map((p) =>
+          p.id === conn.peer ? { ...p, status: 'disconnected' } : p
+        ),
+        statusMessage: 'Par desconectado',
+      }));
+    });
+
+    conn.on('error', (err) => {
+      console.error('Error al conectar con el par:', err);
+      set({
+        isConnecting: false,
+        error: 'No se pudo conectar con el par especificado.',
+        statusMessage: 'Error al conectar',
+      });
+    });
   },
 
-  broadcastMovies: () => {
-    const { activeConnections, syncMoviesWithPeer } = get();
-    activeConnections.forEach((conn) => {
-      syncMoviesWithPeer(conn);
+  broadcastMovies: (moviesList?: Movie[]) => {
+    const { connectedPeers, userName } = get();
+    const myMovies = moviesList || useMovieStore.getState().movies.filter((m) => m.owner === 'me');
+
+    connectedPeers.forEach((peer) => {
+      if (peer.connection && peer.connection.open && peer.status === 'connected') {
+        peer.connection.send({
+          type: 'HANDSHAKE',
+          userName,
+          movies: myMovies,
+        });
+      }
     });
   },
 
   disconnectPeer: (peerId: string) => {
-    const conn = get().activeConnections.get(peerId);
-    if (conn) {
-      conn.close();
+    const { connectedPeers } = get();
+    const target = connectedPeers.find((p) => p.id === peerId);
+    if (target) {
+      target.connection.close();
     }
+    set((state) => ({
+      connectedPeers: state.connectedPeers.map((p) =>
+        p.id === peerId ? { ...p, status: 'disconnected' } : p
+      ),
+      statusMessage: 'Par desconectado',
+    }));
   },
 }));
