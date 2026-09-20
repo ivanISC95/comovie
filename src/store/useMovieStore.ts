@@ -124,15 +124,44 @@ export const useMovieStore = create<MovieState>((set, get) => ({
     set({ movies: allMovies });
   },
 
-  exportMoviesJSON: () => {
+  // En src/store/useMovieStore.ts
+
+  exportMoviesJSON: async () => {
     const myMovies = get().movies.filter((m) => m.owner === 'me');
-    const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(myMovies, null, 2));
+    const jsonString = JSON.stringify(myMovies, null, 2);
+    const fileName = `cinepals-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    const blob = new Blob([jsonString], { type: 'application/json' });
+
+    // 1. Intenta usar Web Share API (Nativo para iPhone / iOS Safari PWA)
+    const file = new File([blob], fileName, { type: 'application/json' });
+
+    if (
+      navigator.canShare &&
+      navigator.canShare({ files: [file] }) &&
+      /iPhone|iPad|iPod/i.test(navigator.userAgent)
+    ) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'CinePals Backup',
+          text: 'Respaldo de películas de CinePals',
+        });
+        return;
+      } catch (error) {
+        if ((error as Error).name === 'AbortError') return; // El usuario canceló la hoja de compartir
+        console.warn('Error en navigator.share, ejecutando descarga clásica:', error);
+      }
+    }
+
+    // 2. Método estándar para PC / Android Chrome
+    const url = URL.createObjectURL(blob);
     const downloadAnchor = document.createElement('a');
-    downloadAnchor.setAttribute('href', dataStr);
-    downloadAnchor.setAttribute('download', `cinepals-backup-${new Date().toISOString().slice(0, 10)}.json`);
+    downloadAnchor.setAttribute('href', url);
+    downloadAnchor.setAttribute('download', fileName);
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
+    URL.revokeObjectURL(url);
   },
 
   importMoviesJSON: async (jsonString: string) => {
