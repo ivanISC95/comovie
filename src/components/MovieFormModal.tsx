@@ -36,7 +36,20 @@ interface MovieFormModalProps {
 }
 
 export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalProps) {
-  const { addMovie, updateMovie } = useMovieStore();
+  const { movies, addMovie, updateMovie } = useMovieStore();
+  // Helper para normalizar el título (elimina acentos, minúsculas y espacios extra)
+  const normalizeString = (str: string) =>
+    str
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  const capitalizeFirstLetter = (text: string): string => {
+    if (!text) return '';
+    const trimmed = text.trimStart(); // Mantiene espacios intermedios pero quita los iniciales
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  }
 
   const form = useForm({
     initialValues: {
@@ -49,7 +62,34 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
       comment: '',
     },
     validate: {
-      title: (value) => (value.trim().length === 0 ? 'El título es obligatorio' : null),
+      // title: (value) => (value.trim().length === 0 ? 'El título es obligatorio' : null),
+      title: (value, values) => {
+        if (!value.trim()) {
+          return 'El título es obligatorio';
+        }
+
+        // Normalizamos el título actual ingresado por el usuario
+        const cleanTitle = normalizeString(value);
+        const selectedYear = values.year;
+
+        // Comprobar si ya existe una película con el mismo TÍTULO y AÑO
+        const isDuplicate = movies.some((m) => {
+          // Si estamos editando, omitimos la misma película de la comprobación
+          if (movieToEdit && m.id === movieToEdit.id) return false;
+
+          const sameTitle = normalizeString(m.title) === cleanTitle;
+          const sameYear = Number(m.year) === Number(selectedYear);
+          const isMyMovie = m.owner === 'me';
+
+          return isMyMovie && sameTitle && sameYear;
+        });
+
+        if (isDuplicate) {
+          return `Ya tienes registrada "${capitalizeFirstLetter(value.trim())}" (${selectedYear}) en tu lista`;
+        }
+
+        return null;
+      },
       genre: (value) => (!value ? 'Selecciona un género' : null),
     },
   });
@@ -74,9 +114,10 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
   // Reemplaza el bloque handleSubmit dentro de MovieFormModal.tsx
 
   const handleSubmit = (values: typeof form.values) => {
+    const formattedTitle = capitalizeFirstLetter(values.title.trim());
     if (movieToEdit) {
       updateMovie(movieToEdit.id, {
-        title: values.title,
+        title: formattedTitle,
         genre: values.genre,
         rating: values.rating,
         watched: values.watched,
@@ -87,7 +128,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
     } else {
       // Se elimina la propiedad 'owner' ya que el store la asigna automáticamente
       addMovie({
-        title: values.title,
+        title: formattedTitle,
         genre: values.genre,
         rating: values.rating,
         watched: values.watched,
@@ -148,7 +189,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
             label="URL del Poster / Imagen"
             placeholder="https://..."
             {...form.getInputProps('imageUrl')}
-            style={{display:'none'}}
+            style={{ display: 'none' }}
           />
 
           <Textarea
@@ -156,7 +197,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
             placeholder="¿Qué te pareció?"
             rows={2}
             {...form.getInputProps('comment')}
-            style={{display:'none'}}
+            style={{ display: 'none' }}
           />
 
           <Checkbox
@@ -164,8 +205,8 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
             label="¿Ya la viste?"
             checked={form.values.watched}
             {...form.getInputProps('watched', { type: 'checkbox' })}
-            style={{display:'none'}}
-            />
+            style={{ display: 'none' }}
+          />
 
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={onClose}>
