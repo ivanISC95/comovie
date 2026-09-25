@@ -8,17 +8,35 @@ interface MovieMatchesProps {
   movies: Movie[];
 }
 
+// Normalización básica de títulos
+const normalizeTitle = (title: string) =>
+  title
+    .trim()
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+
 export function MovieMatches({ movies }: MovieMatchesProps) {
-  // Identificar películas compartidas por más de un usuario
-  const titleMap: Record<string, Movie[]> = {};
+  // 1. Agrupar por Título + Año
+  const matchMap: Record<string, Movie[]> = {};
 
   movies.forEach((movie) => {
-    const key = movie.title.toLowerCase().trim();
-    if (!titleMap[key]) titleMap[key] = [];
-    titleMap[key].push(movie);
+    const cleanTitle = normalizeTitle(movie.title);
+    const year = movie.year || 'unknown';
+    // Clave compuesta: ej. "dumbo-1941" vs "dumbo-2019"
+    const key = `${cleanTitle}-${year}`;
+
+    if (!matchMap[key]) matchMap[key] = [];
+    matchMap[key].push(movie);
   });
 
-  const matches = Object.values(titleMap).filter((list) => list.length > 1);
+  // 2. Filtrar grupos que pertenezcan a DISTINTOS propietarios (mía vs amigo)
+  const matches = Object.values(matchMap).filter((group) => {
+    const hasMyMovie = group.some((m) => m.owner === 'me');
+    const hasPartnerMovie = group.some((m) => m.owner === 'partner');
+
+    return hasMyMovie && hasPartnerMovie;
+  });
 
   return (
     <Paper p="md" radius="md" withBorder h="100%">
@@ -39,11 +57,11 @@ export function MovieMatches({ movies }: MovieMatchesProps) {
             const baseMovie = group[0];
 
             return (
-              <Paper key={baseMovie.title} p="xs" withBorder radius="sm">
+              <Paper key={`${baseMovie.title}-${baseMovie.year}`} p="xs" withBorder radius="sm">
                 <Group justify="space-between">
                   <div>
                     <Text size="sm" fw={600}>
-                      {baseMovie.title}
+                      {baseMovie.title} ({baseMovie.year})
                     </Text>
 
                     <Text size="xs" c="dimmed">
@@ -57,7 +75,7 @@ export function MovieMatches({ movies }: MovieMatchesProps) {
                         key={m.id}
                         size="sm"
                         radius="xl"
-                        color={m.owner === 'me' ? 'blue' : 'green'}
+                        color={m.owner === 'me' ? 'blue' : 'violet'}
                       >
                         {m.owner === 'me' ? 'TÚ' : 'PAR'}
                       </Avatar>

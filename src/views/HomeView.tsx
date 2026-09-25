@@ -17,7 +17,7 @@ export function HomeView() {
   }, [fetchMovies]);
 
   const activePeersCount = connectedPeers.filter((p) => p.status === 'connected').length;
-  console.log(activePeersCount)
+
 
   return (
     <Container size="md" py="md">

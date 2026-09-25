@@ -13,8 +13,7 @@ export function StatCards({ movies, connectedPeersCount }: StatCardsProps) {
   const myMovies = movies.filter((m) => m.owner === 'me');
   // const watchedCount = myMovies.filter((m:any) => m.watched).length;
   const favoriteCount = myMovies.filter((m:any) => (m.rating == 5)).length;
-  console.log(movies)
-  console.log(favoriteCount)
+
 
   const stats = [
     { title: 'Mis Películas', value: myMovies.length, icon: IconMovie, color: 'blue' },

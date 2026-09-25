@@ -75,7 +75,7 @@ export function MainLayout({ children }: { children: ReactNode }) {
         <Group justify="space-between" h="100%">
           <Group gap="xs">
             <Title order={3} style={{ fontFamily: 'Inter, sans-serif' }}>
-              CinePals
+              CoMovie
             </Title>
             <Badge variant="light" color="blue" size="sm">
               Beta
