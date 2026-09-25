@@ -60,10 +60,17 @@ export function MovieTable({ movies, onEdit }: MovieTableProps) {
                 </Table.Td>
 
                 {/* Género */}
-                <Table.Td>
+                {/* <Table.Td>
                   <Badge size="sm" variant="light" color="gray">
                     {movie.genre}
                   </Badge>
+                </Table.Td> */}
+                <Table.Td>
+                  {(Array.isArray(movie.genre) ? movie.genre : [movie.genre]).map((name, index) => (
+                    <Badge key={`${name}-${index}`} size="sm" variant="light" color="gray">
+                      {name}
+                    </Badge>
+                  ))}
                 </Table.Td>
 
                 {/* Año */}

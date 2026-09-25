@@ -27,6 +27,8 @@ export function MyListView() {
   const [sortBy, setSortBy] = useState<string>('date-desc');
   const [movieToEdit, setMovieToEdit] = useState<Movie | null>(null);
 
+  // src/views/MyListView.tsx
+
   // Filtrado y ordenamiento seguro de películas
   const filteredMovies = movies
     .filter((m) => {
@@ -34,13 +36,17 @@ export function MyListView() {
       const safeQuery = (searchQuery || '').toLowerCase();
       const matchesSearch = safeTitle.includes(safeQuery);
 
-      const matchesGenre = selectedGenre === 'all' || m.genre === selectedGenre;
+      // 1. Manejo seguro para saber si el género seleccionado está presente
+      const genres = Array.isArray(m.genre) ? m.genre : [m.genre];
+      const matchesGenre =
+        selectedGenre === 'all' || genres.includes(selectedGenre as Genre);
+
       return matchesSearch && matchesGenre;
     })
     .sort((a, b) => {
       if (sortBy === 'rating-desc') return (b.rating || 0) - (a.rating || 0);
       if (sortBy === 'title-asc') return (a.title || '').localeCompare(b.title || '');
-      // 'date-desc' usando `createdAt` (o Date.now() de respaldo)
+      // 'date-desc' usando `createdAt` (o 0 de respaldo)
       return (b.createdAt || 0) - (a.createdAt || 0);
     });
 
@@ -91,6 +97,7 @@ export function MyListView() {
                 { value: 'Animación', label: 'Animación' },
                 { value: 'Documental', label: 'Documental' },
                 { value: 'Thriller', label: 'Thriller' },
+                { value: 'Superhéroes', label: 'Superhéroes' },
                 { value: 'Otro', label: 'Otro' },
               ]}
               style={{ width: 180 }}

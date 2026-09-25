@@ -4,13 +4,13 @@ import { useEffect } from 'react';
 import {
   Modal,
   TextInput,
-  Select,
   NumberInput,
   Textarea,
   Button,
   Group,
   Checkbox,
   Stack,
+  MultiSelect,
 } from '@mantine/core';
 import { useForm } from '@mantine/form';
 import { useMovieStore } from '../store/useMovieStore';
@@ -26,6 +26,7 @@ const GENRES: Genre[] = [
   'Animación',
   'Documental',
   'Thriller',
+  'Superhéroes',
   'Otro',
 ];
 
@@ -37,7 +38,7 @@ interface MovieFormModalProps {
 
 export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalProps) {
   const { movies, addMovie, updateMovie } = useMovieStore();
-  // Helper para normalizar el título (elimina acentos, minúsculas y espacios extra)
+
   const normalizeString = (str: string) =>
     str
       .trim()
@@ -47,14 +48,14 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
 
   const capitalizeFirstLetter = (text: string): string => {
     if (!text) return '';
-    const trimmed = text.trimStart(); // Mantiene espacios intermedios pero quita los iniciales
+    const trimmed = text.trimStart();
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
-  }
+  };
 
   const form = useForm({
     initialValues: {
       title: '',
-      genre: 'Acción' as Genre,
+      genre: [] as Genre[],
       rating: 3,
       watched: true,
       imageUrl: '',
@@ -62,21 +63,16 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
       comment: '',
     },
     validate: {
-      // title: (value) => (value.trim().length === 0 ? 'El título es obligatorio' : null),
       title: (value, values) => {
         if (!value.trim()) {
           return 'El título es obligatorio';
         }
 
-        // Normalizamos el título actual ingresado por el usuario
         const cleanTitle = normalizeString(value);
         const selectedYear = values.year;
 
-        // Comprobar si ya existe una película con el mismo TÍTULO y AÑO
         const isDuplicate = movies.some((m) => {
-          // Si estamos editando, omitimos la misma película de la comprobación
           if (movieToEdit && m.id === movieToEdit.id) return false;
-
           const sameTitle = normalizeString(m.title) === cleanTitle;
           const sameYear = Number(m.year) === Number(selectedYear);
           const isMyMovie = m.owner === 'me';
@@ -90,16 +86,21 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
 
         return null;
       },
-      genre: (value) => (!value ? 'Selecciona un género' : null),
+      genre: (value) => (!value || value.length === 0 ? 'Selecciona al menos un género' : null),
     },
   });
 
-  // Cargar datos al editar
+  // Cargar datos al editar o resetear al abrir
   useEffect(() => {
     if (movieToEdit) {
+      // 3. Garantizar que genre sea un arreglo incluso si viene como string desde la BD antigua
+      const formattedGenres: Genre[] = Array.isArray(movieToEdit.genre)
+        ? (movieToEdit.genre as Genre[])
+        : [movieToEdit.genre as Genre];
+
       form.setValues({
         title: movieToEdit.title,
-        genre: movieToEdit.genre,
+        genre: formattedGenres,
         rating: movieToEdit.rating || 3,
         watched: movieToEdit.watched,
         imageUrl: movieToEdit.imageUrl || '',
@@ -111,10 +112,9 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
     }
   }, [movieToEdit, opened]);
 
-  // Reemplaza el bloque handleSubmit dentro de MovieFormModal.tsx
-
   const handleSubmit = (values: typeof form.values) => {
     const formattedTitle = capitalizeFirstLetter(values.title.trim());
+
     if (movieToEdit) {
       updateMovie(movieToEdit.id, {
         title: formattedTitle,
@@ -126,7 +126,6 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
         comment: values.comment,
       });
     } else {
-      // Se elimina la propiedad 'owner' ya que el store la asigna automáticamente
       addMovie({
         title: formattedTitle,
         genre: values.genre,
@@ -141,6 +140,8 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
     form.reset();
     onClose();
   };
+
+  const inputStyle = { input: { fontSize: '16px' } };
 
   return (
     <Modal
@@ -157,13 +158,28 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
             label="Título"
             placeholder="Ej: Inception"
             required
-            {...form.getInputProps('title')}
+            styles={inputStyle}
+            value={form.values.title}
+            onChange={(e) => {
+              const formatted = capitalizeFirstLetter(e.currentTarget.value);
+              form.setFieldValue('title', formatted);
+            }}
+            error={form.errors.title}
           />
 
-          <Select
-            label="Género"
+          <MultiSelect
+            label="Géneros"
+            placeholder="Selecciona uno o más géneros"
             data={GENRES}
             required
+            searchable
+            clearable
+            maxDropdownHeight={200} // Limita la altura de la lista desplegable a 200px
+            comboboxProps={{
+              shadow: 'md',
+              withinPortal: true, // Mantiene el menú sobre el modal sin recortarlo
+            }}
+            styles={inputStyle}
             {...form.getInputProps('genre')}
           />
 
@@ -173,6 +189,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
               placeholder="2024"
               min={1888}
               max={2100}
+              styles={inputStyle}
               {...form.getInputProps('year')}
             />
 
@@ -181,6 +198,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
               min={0}
               max={5}
               step={0.5}
+              styles={inputStyle}
               {...form.getInputProps('rating')}
             />
           </Group>
@@ -188,6 +206,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
           <TextInput
             label="URL del Poster / Imagen"
             placeholder="https://..."
+            styles={inputStyle}
             {...form.getInputProps('imageUrl')}
             style={{ display: 'none' }}
           />
@@ -196,6 +215,7 @@ export function MovieFormModal({ opened, onClose, movieToEdit }: MovieFormModalP
             label="Comentario / Reseña"
             placeholder="¿Qué te pareció?"
             rows={2}
+            styles={inputStyle}
             {...form.getInputProps('comment')}
             style={{ display: 'none' }}
           />

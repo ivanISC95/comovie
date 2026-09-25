@@ -9,18 +9,27 @@ interface GenreChartProps {
 
 export function GenreChart({ movies }: GenreChartProps) {
   const genreCounts: Record<string, number> = {};
+  let totalGenreTags = 0;
 
+  // 1. Recorrer las películas y contar la presencia de cada género
   movies.forEach((movie) => {
     if (movie.genre) {
-      genreCounts[movie.genre] = (genreCounts[movie.genre] || 0) + 1;
+      // Compatibilidad: asegura iterar ya sea un arreglo o un string legacy
+      const genres = Array.isArray(movie.genre) ? movie.genre : [movie.genre];
+
+      genres.forEach((g) => {
+        if (g) {
+          genreCounts[g] = (genreCounts[g] || 0) + 1;
+          totalGenreTags += 1; // Contador global de géneros asignados
+        }
+      });
     }
   });
 
+  // 2. Ordenar los géneros por cantidad y tomar el Top 5
   const sortedGenres = Object.entries(genreCounts)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
-
-  const maxCount = sortedGenres[0]?.[1] || 1;
 
   return (
     <Paper p="md" radius="md" withBorder h="100%">
@@ -35,7 +44,8 @@ export function GenreChart({ movies }: GenreChartProps) {
       ) : (
         <Stack gap="sm">
           {sortedGenres.map(([genre, count]) => {
-            const percentage = Math.round((count / maxCount) * 100);
+            // Porcentaje representativo del género sobre el total de apariciones de géneros
+            const percentage = totalGenreTags > 0 ? Math.round((count / totalGenreTags) * 100) : 0;
 
             return (
               <div key={genre}>
@@ -45,7 +55,7 @@ export function GenreChart({ movies }: GenreChartProps) {
                   </Text>
 
                   <Text size="xs" c="dimmed">
-                    {count} película(s)
+                    {count} {count === 1 ? 'película' : 'películas'} ({percentage}%)
                   </Text>
                 </Group>
 

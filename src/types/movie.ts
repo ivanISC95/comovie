@@ -10,12 +10,13 @@ export type Genre =
   | 'Animación'
   | 'Documental'
   | 'Thriller'
+  | 'Superhéroes'
   | 'Otro';
 
 export interface Movie {
   id: string;
   title: string;
-  genre: Genre;
+  genre: Genre[];
   rating?: number;
   watched: boolean;
   createdAt: number;
