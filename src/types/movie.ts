@@ -11,6 +11,8 @@ export type Genre =
   | 'Documental'
   | 'Thriller'
   | 'Superhéroes'
+  | 'Aventura'
+  | 'Fantasia'
   | 'Otro';
 
 export interface Movie {

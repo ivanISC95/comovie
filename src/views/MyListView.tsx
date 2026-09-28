@@ -98,6 +98,8 @@ export function MyListView() {
                 { value: 'Documental', label: 'Documental' },
                 { value: 'Thriller', label: 'Thriller' },
                 { value: 'Superhéroes', label: 'Superhéroes' },
+                { value: 'Aventura', label: 'Aventura' },
+                { value: 'Fantasia', label: 'Fantasia' },
                 { value: 'Otro', label: 'Otro' },
               ]}
               style={{ width: 180 }}

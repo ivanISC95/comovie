@@ -27,6 +27,8 @@ const GENRES: Genre[] = [
   'Documental',
   'Thriller',
   'Superhéroes',
+  'Aventura',
+  'Fantasia',
   'Otro',
 ];
 
