@@ -19,7 +19,7 @@ export function StatCards({ movies, connectedPeersCount }: StatCardsProps) {
     { title: 'Mis Películas', value: myMovies.length, icon: IconMovie, color: 'blue' },
     // { title: 'Vistas', value: watchedCount, icon: IconEye, color: 'teal' },
     { title: 'Favoritas', value: favoriteCount, icon: IconHeart, color: 'red' },
-    { title: 'Coincidencias', value: connectedPeersCount, icon: IconUsers, color: 'violet' },
+    { title: 'Conectados', value: connectedPeersCount, icon: IconUsers, color: 'violet' },
   ];
 
   return (
